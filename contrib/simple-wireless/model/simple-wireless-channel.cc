@@ -44,7 +44,7 @@ SimpleWirelessChannel::GetTypeId (void)
     .AddConstructor<SimpleWirelessChannel> ()
     .AddAttribute ("MaxRange",
                    "Maximum Transmission Range (meters)",
-                   DoubleValue (250),
+                   DoubleValue (std::numeric_limits<double>::max()),
                    MakeDoubleAccessor (&SimpleWirelessChannel::m_range),
                    MakeDoubleChecker<double> ())
     .AddAttribute ("RangeErrorModel",
