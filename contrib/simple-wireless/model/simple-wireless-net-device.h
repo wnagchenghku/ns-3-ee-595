@@ -32,9 +32,6 @@
 #include "ns3/double.h"
 #include "ns3/boolean.h"
 
-#include <boost/algorithm/string/split.hpp>
-#include <boost/algorithm/string/classification.hpp>
-
 namespace ns3 {
 
 class SimpleWirelessChannel;
