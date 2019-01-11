@@ -24,6 +24,9 @@
 
 # Results are stored in a timestamped 'results' directory
 
+set -e
+set -o errexit
+
 control_c()
 {
   echo "exiting"
@@ -32,6 +35,7 @@ control_c()
 
 trap control_c SIGINT
 
+dirname=link-performance
 if test ! -f ../../../../waf ; then
     echo "please run this program from within the directory `dirname $0`, like this:"
     echo "cd `dirname $0`"
@@ -39,16 +43,13 @@ if test ! -f ../../../../waf ; then
     exit 1
 fi
 
-set -o errexit
-
-dirname=link-performance
 resultsDir=`pwd`/results/$dirname-`date +%Y%m%d-%H%M%S`
 experimentDir=`pwd`
-mkdir -p ${resultsDir}
 
 # need this as otherwise waf won't find the executables
 cd ../../../../
 
+# Avoid accidentally overwriting existing trace files; confirm deletion first
 if [ -e link-performance-rssi.dat ]; then
     echo "Remove existing file link-performance-rssi.dat from top-level directory?"
     select yn in "Yes" "No"; do
@@ -113,9 +114,12 @@ fi
 # length of the error bar is in column 4 
 /usr/bin/python ../utils/plot-lines-with-error-bars.py --title="${plotTitle}" --xlabel='distance (m)' --ylabel='Packet Error Ratio (PER)' --xcol=5 --ycol=3 --yerror=4 --fileName=link-performance-summary.dat --plotName=${plotName}
 
+# If script has succeeded to this point, create the results directory
+mkdir -p ${resultsDir}
 # Move and copy files to the results directory
 mv $plotName ${resultsDir} 
 mv link-performance-summary.dat ${resultsDir} 
 mv link-performance-rssi.dat ${resultsDir} 
 cp $0 ${resultsDir}
 cp ../utils/plot-lines-with-error-bars.py ${resultsDir}
+git show --name-only > ${resultsDir}/git-commit.txt
