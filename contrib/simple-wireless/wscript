@@ -6,7 +6,6 @@ def build(bld):
         'model/simple-wireless-net-device.cc',
         'model/simple-wireless-channel.cc',
         'model/drop-head-queue.cc',
-        'model/priority-queue.cc',
         'model/snr-per-error-model.cc',
         ]
     headers = bld(features='ns3header')
@@ -15,10 +14,8 @@ def build(bld):
         'model/simple-wireless-net-device.h',
         'model/simple-wireless-channel.h',
         'model/drop-head-queue.h',
-        'model/priority-queue.h',
         'model/snr-per-error-model.h',
         ]
-    obj.env.append_value("LIB", ["pcap"])
     module_test = bld.create_ns3_module_test_library('simple-wireless')
     module_test.source = [
         'test/simple-wireless-test-suite.cc',
