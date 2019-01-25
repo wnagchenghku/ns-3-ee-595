@@ -7,6 +7,7 @@ def build(bld):
         'model/simple-wireless-channel.cc',
         'model/drop-head-queue.cc',
         'model/snr-per-error-model.cc',
+        'model/two-state-propagation-loss-model.cc',
         ]
     headers = bld(features='ns3header')
     headers.module = 'simple-wireless'
@@ -15,6 +16,7 @@ def build(bld):
         'model/simple-wireless-channel.h',
         'model/drop-head-queue.h',
         'model/snr-per-error-model.h',
+        'model/two-state-propagation-loss-model.h',
         ]
     module_test = bld.create_ns3_module_test_library('simple-wireless')
     module_test.source = [

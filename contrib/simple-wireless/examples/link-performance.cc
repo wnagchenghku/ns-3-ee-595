@@ -44,6 +44,7 @@
 #include "ns3/mobility-module.h"
 #include "ns3/applications-module.h"
 #include "ns3/propagation-module.h"
+#include "ns3/two-state-propagation-loss-model.h"
 #include "ns3/simple-wireless-channel.h"
 #include "ns3/simple-wireless-net-device.h"
 #include "ns3/snr-per-error-model.h"
@@ -125,7 +126,7 @@ main (int argc, char *argv[])
   cmd.AddValue("transmitPower","transmit power in dBm",transmitPower);
   cmd.AddValue("noisePower","noise power in dBm",noisePower);
   cmd.AddValue("frequency","frequency in Hz",frequency);
-  cmd.AddValue("lossModelType","loss model (Friis or LogDistance)",lossModelType);
+  cmd.AddValue("lossModelType","loss model (Friis, LogDistance, or TwoState)",lossModelType);
   cmd.AddValue("metadata","metadata about experiment run",metadata);
   cmd.Parse (argc, argv);
 
@@ -156,6 +157,11 @@ main (int argc, char *argv[])
   else if (lossModelType == "LogDistance")
     {
       Ptr<LogDistancePropagationLossModel> lossModel = CreateObject<LogDistancePropagationLossModel> ();
+      channel->AddPropagationLossModel (lossModel);
+    }
+  else if (lossModelType == "TwoState")
+    {
+      Ptr<TwoStatePropagationLossModel> lossModel = CreateObject<TwoStatePropagationLossModel> ();
       channel->AddPropagationLossModel (lossModel);
     }
   else
