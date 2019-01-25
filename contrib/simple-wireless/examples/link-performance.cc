@@ -110,6 +110,7 @@ main (int argc, char *argv[])
   double noisePower = -100; // dbm
   double transmitPower = 16; // dbm
   double frequency = 5000000000; // Hz
+  std::string lossModelType = "Friis";
   std::string metadata = "";
 
   g_numPacketsSent = 0;
@@ -124,6 +125,7 @@ main (int argc, char *argv[])
   cmd.AddValue("transmitPower","transmit power in dBm",transmitPower);
   cmd.AddValue("noisePower","noise power in dBm",noisePower);
   cmd.AddValue("frequency","frequency in Hz",frequency);
+  cmd.AddValue("lossModelType","loss model (Friis or LogDistance)",lossModelType);
   cmd.AddValue("metadata","metadata about experiment run",metadata);
   cmd.Parse (argc, argv);
 
@@ -144,12 +146,25 @@ main (int argc, char *argv[])
   mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
   mobility.Install (nodes);
 
-  auto lossModel = CreateObject<FriisPropagationLossModel> ();
-  lossModel->SetFrequency (frequency);
+  Ptr<SimpleWirelessChannel> channel = CreateObject<SimpleWirelessChannel> ();
+  if (lossModelType == "Friis")
+    {    
+      Ptr<FriisPropagationLossModel> lossModel = CreateObject<FriisPropagationLossModel> ();
+      lossModel->SetFrequency (frequency);
+      channel->AddPropagationLossModel (lossModel);
+    }
+  else if (lossModelType == "LogDistance")
+    {
+      Ptr<LogDistancePropagationLossModel> lossModel = CreateObject<LogDistancePropagationLossModel> ();
+      channel->AddPropagationLossModel (lossModel);
+    }
+  else
+    {
+      std::cerr << "Error, loss model " << lossModelType << " is unknown " << std::endl;
+      exit (1);
+    }
 
   NetDeviceContainer devices;
-  Ptr<SimpleWirelessChannel> channel = CreateObject<SimpleWirelessChannel> ();
-  channel->AddPropagationLossModel (lossModel);
   Ptr<SimpleWirelessNetDevice> senderDevice = CreateObject<SimpleWirelessNetDevice> ();
   senderDevice->SetChannel (channel);
   senderDevice->SetNode (senderNode);
