@@ -28,6 +28,7 @@
 #include "ns3/socket-factory.h"
 #include "ns3/packet.h"
 #include "ns3/uinteger.h"
+#include "ns3/boolean.h"
 #include "ns3/abort.h"
 #include "packet-socket-client.h"
 #include <cstdlib>
@@ -46,6 +47,11 @@ PacketSocketClient::GetTypeId (void)
     .SetParent<Application> ()
     .SetGroupName("Network")
     .AddConstructor<PacketSocketClient> ()
+    .AddAttribute ("OnDemand",
+                   "Send on demand",
+                   BooleanValue (false),
+                   MakeBooleanAccessor (&PacketSocketClient::m_onDemand),
+                   MakeBooleanChecker ())
     .AddAttribute ("MaxPackets",
                    "The maximum number of packets the application will send (zero means infinite)",
                    UintegerValue (100),
@@ -139,15 +145,44 @@ PacketSocketClient::StartApplication (void)
     }
 
   m_socket->SetRecvCallback (MakeNullCallback<void, Ptr<Socket> > ());
-  m_sendEvent = Simulator::ScheduleNow (&PacketSocketClient::Send, this);
+  if (!m_onDemand)
+    {
+      m_sendEvent = Simulator::ScheduleNow (&PacketSocketClient::Send, this);
+    }
 }
 
 void
 PacketSocketClient::StopApplication (void)
 {
   NS_LOG_FUNCTION (this);
-  Simulator::Cancel (m_sendEvent);
+  if (!m_onDemand)
+    {
+      Simulator::Cancel (m_sendEvent);
+    }
   m_socket->Close ();
+}
+
+void
+PacketSocketClient::SendOnDemand (void)
+{
+  NS_LOG_FUNCTION (this);
+  Ptr<Packet> p = Create<Packet> (m_size);
+  std::stringstream peerAddressStringStream;
+  peerAddressStringStream << PacketSocketAddress::ConvertFrom (m_peerAddress);
+
+  if ((m_socket->Send (p)) >= 0)
+    {
+      NS_LOG_INFO ("TraceDelay TX " << m_size << " bytes to "
+                                    << peerAddressStringStream.str () << " Uid: "
+                                    << p->GetUid () << " Time: "
+                                    << (Simulator::Now ()).GetSeconds ());
+      m_txTrace (p, m_peerAddress);
+    }
+  else
+    {
+      NS_LOG_INFO ("Error while sending " << m_size << " bytes to "
+                                          << peerAddressStringStream.str ());
+    }
 }
 
 void

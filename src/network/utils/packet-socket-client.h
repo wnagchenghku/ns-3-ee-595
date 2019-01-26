@@ -74,6 +74,11 @@ public:
    */
   uint8_t GetPriority (void) const;
 
+  /**
+   * \brief Send a packet
+   */
+  void SendOnDemand (void);
+
 protected:
   virtual void DoDispose (void);
 
@@ -103,6 +108,7 @@ private:
   PacketSocketAddress m_peerAddress; //!< Remote peer address
   bool m_peerAddressSet; //!< Sanity check
   EventId m_sendEvent;   //!< Event to send the next packet
+  bool m_onDemand;       //!< Whether to send on-demand
 
   /// Traced Callback: sent packets, source address.
   TracedCallback<Ptr<const Packet>, const Address &> m_txTrace;
