@@ -187,6 +187,11 @@ SimpleWirelessNetDevice::GetTypeId (void)
                    PointerValue (),
                    MakePointerAccessor (&SimpleWirelessNetDevice::m_queue),
                    MakePointerChecker<Queue<Packet> > ())
+    .AddAttribute ("SlottedAloha",
+                   "Whether to enable slotted aloha behavior",
+                   BooleanValue (false),
+                   MakeBooleanAccessor (&SimpleWirelessNetDevice::m_slottedAloha),
+                   MakeBooleanChecker ())
     .AddAttribute ("FixedNeighborListEnabled",
                    "Enabled or Disabled",
                    BooleanValue (false),
@@ -252,11 +257,18 @@ SimpleWirelessNetDevice::SimpleWirelessNetDevice ()
   m_pcapEnabled (false),
   m_fixedNbrListEnabled (false),
   m_nbrCount (0),
-  m_snrPerErrorModel (0)
-
+  m_snrPerErrorModel (0),
+  m_slottedAlohaReceptions (0),
+  m_receiverProcessingDelay (MicroSeconds (1))
 {
   NS_LOG_FUNCTION (this);
   m_uniformRv = CreateObject<UniformRandomVariable> ();
+}
+
+void
+SimpleWirelessNetDevice::DoInitialize (void)
+{
+  NS_LOG_FUNCTION (this);
 }
 
 void
@@ -264,8 +276,56 @@ SimpleWirelessNetDevice::Receive (Ptr<Packet> packet, double rxPower, uint16_t p
                                   Mac48Address to, Mac48Address from)
 {
   NS_LOG_FUNCTION (packet << rxPower << protocol << to << from);
-  NetDevice::PacketType packetType;
+  if (m_slottedAloha)
+    {
+      if (m_slottedAlohaReceptions == 0)
+        {
+          m_receiveEvent = Simulator::Schedule (m_receiverProcessingDelay, &SimpleWirelessNetDevice::HandleReceive, this);
+        }
+      struct ReceivedPacket receivedPkt;
+      receivedPkt.packet = packet;
+      receivedPkt.rxPower = rxPower;
+      receivedPkt.protocol = protocol;
+      receivedPkt.to = to;
+      receivedPkt.from = from;
+      NS_LOG_DEBUG ("Deferring reception of packet with rxPower " << rxPower);
+      m_receiveList.push_back (receivedPkt);
+      m_slottedAlohaReceptions++;
+    }
+  else
+    {
+      DoReceive (packet, rxPower, protocol, to, from);
+    }
+}
 
+void
+SimpleWirelessNetDevice::HandleReceive (void)
+{
+  NS_LOG_FUNCTION (this);
+  struct ReceivedPacket bestPkt;
+  NS_LOG_DEBUG ("Handling " << m_slottedAlohaReceptions << " candidate packets in slot");
+  auto it = m_receiveList.begin ();
+  if (m_slottedAlohaReceptions == 1)
+    {
+      bestPkt = (*it);
+      NS_LOG_DEBUG ("Receiving packet with rxPower = " << bestPkt.rxPower);
+      DoReceive (bestPkt.packet, bestPkt.rxPower, bestPkt.protocol, bestPkt.to, bestPkt.from);
+    }
+  else if (m_slottedAlohaReceptions > 1)
+    {
+      NS_LOG_DEBUG ("MAC collision model; " << m_slottedAlohaReceptions << " receptions received");
+    }
+  m_slottedAlohaReceptions = 0;
+  m_receiveList.clear ();
+}
+
+void
+SimpleWirelessNetDevice::DoReceive (Ptr<Packet> packet, double rxPower, uint16_t protocol,
+                                  Mac48Address to, Mac48Address from)
+{
+  NS_LOG_FUNCTION (packet << rxPower << protocol << to << from);
+  NetDevice::PacketType packetType;
+  
   m_phyRxBeginTrace (packet, rxPower, from);
   m_pktRcvTotal++;
 
@@ -647,7 +707,6 @@ SimpleWirelessNetDevice::TransmitComplete (void)
 
   NS_LOG_DEBUG (Simulator::Now () << " Tx complete. Packets in queue: " <<  m_queue->GetNPackets () << " Bytes in queue: " << m_queue->GetNBytes ());
 
-
   Ptr<Packet> p = m_queue->Dequeue ();
   if (p == 0)
     {
@@ -895,9 +954,11 @@ SimpleWirelessNetDevice::SetReceiveCallback (NetDevice::ReceiveCallback cb)
 void
 SimpleWirelessNetDevice::DoDispose (void)
 {
+  NS_LOG_FUNCTION (this);
   m_channel = 0;
   m_node = 0;
   m_receiveErrorModel = 0;
+  m_receiveEvent.Cancel ();
   NetDevice::DoDispose ();
 }
 
@@ -955,7 +1016,7 @@ int64_t
 SimpleWirelessNetDevice::AssignStreams (int64_t stream)
 {
   NS_LOG_FUNCTION (this << stream);
-  m_uniformRv->SetStream (stream);
+  m_uniformRv->SetStream (stream++);
   return 1;
 }
 

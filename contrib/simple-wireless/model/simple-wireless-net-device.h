@@ -274,6 +274,7 @@ public:
 
 protected:
   virtual void DoDispose (void);
+  virtual void DoInitialize (void);
 private:
   Ptr<SimpleWirelessChannel> m_channel;
   NetDevice::ReceiveCallback m_rxCallback;
@@ -306,6 +307,31 @@ private:
    * of sending a packet out on the channel.
    */
   void TransmitComplete (void);
+
+  /**
+   * For use with slotted aloha, possibly schedule transmission
+   */
+  void HandleStartOfFrame (void);
+
+  struct ReceivedPacket {
+    Ptr<Packet> packet {0};
+    // A receive power of zero dBm is not zero power, but 1 mW
+    // Need to initialize to the smallest possible negative number
+    double rxPower {-std::numeric_limits<double>::max ()};
+    uint16_t protocol {0};
+    Mac48Address to {Mac48Address ()};
+    Mac48Address from {Mac48Address ()};
+  };
+
+  /**
+   * For modeling receiver processing delay
+   */
+  void DoReceive (Ptr<Packet> packet, double rxPower, uint16_t protocol, Mac48Address to, Mac48Address from);
+
+  /**
+   * In slotted aloha, handle the received frames.
+   */
+  void HandleReceive (void);
 
   /**
    * Enumeration of the states of the transmit machine of the net device.
@@ -430,6 +456,12 @@ private:
   Ptr<UniformRandomVariable> m_uniformRv; //!< Provides uniform random variates
 
   Ptr<SnrPerErrorModel> m_snrPerErrorModel; 
+  
+  bool m_slottedAloha;    //!< Whether to enable slotted aloha
+  uint32_t m_slottedAlohaReceptions; //!< For detecting MAC collisions
+  EventId m_receiveEvent; //!< Event for delayed reception handling
+  Time m_receiverProcessingDelay; //!< delay in receiver processing
+  std::list<struct ReceivedPacket> m_receiveList; //!< accumulate received packets
 };
 
 } // namespace ns3
