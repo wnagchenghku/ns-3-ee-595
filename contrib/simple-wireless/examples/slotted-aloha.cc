@@ -62,6 +62,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <iomanip>
 #include <cmath>
 #include "ns3/core-module.h"
 #include "ns3/network-module.h"
@@ -82,6 +83,18 @@ uint64_t g_numPacketsReceived = 0;
 uint64_t g_numPacketsDropped = 0;
 uint64_t g_maxPackets = 0;
 uint64_t g_slotArrivals = 0;
+uint64_t g_slotArrivalsSinceLastReport = 0;
+uint64_t g_lastReceivedCount = 0;
+uint64_t g_slotsWithoutProgress = 0;
+uint64_t g_maxSlotsWithoutProgress = 0;
+
+void
+ReportProgress (Time reportingInterval)
+{
+  std::cout << "*** Simulation time: " << std::fixed << std::setprecision (3) << Simulator::Now ().GetSeconds () << "s; total received: " << g_numPacketsReceived << "; sent since last report: " << g_slotArrivalsSinceLastReport << std::endl;
+  g_slotArrivalsSinceLastReport = 0;
+  Simulator::Schedule (reportingInterval, &ReportProgress, reportingInterval);
+}
 
 void
 TransmitTrace (Ptr<const Packet> p, Mac48Address from, Mac48Address to, uint16_t proto)
@@ -131,8 +144,25 @@ RetransmissionArrival (void)
 void
 SlotArrivalProcess (Time slotTime, uint32_t nextSender, std::vector<Ptr<PacketSocketClient> > socketVector, Ptr<UniformRandomVariable> backoffVar)
 {
+  // For reporting progress, when verbose flag is set
+  g_slotArrivalsSinceLastReport += g_slotArrivals;
+  if (g_numPacketsReceived == g_lastReceivedCount)
+    {
+      g_slotsWithoutProgress++;
+    }
+  else
+    {
+      g_slotsWithoutProgress = 0;
+      g_lastReceivedCount = g_numPacketsReceived;
+    }
   if (g_numPacketsReceived >= g_maxPackets)
     {
+      Simulator::Stop ();
+      return;
+    }
+  if (g_slotsWithoutProgress >= g_maxSlotsWithoutProgress)
+    {
+      // The system has become unstable and not making progress
       Simulator::Stop ();
       return;
     }
@@ -178,16 +208,21 @@ main (int argc, char *argv[])
   double noisePower = -100; // dbm
   double lambda = 0.1;
   Time slotTime = MicroSeconds (100);
+  Time reportingInterval = MilliSeconds (1);
+  bool verbose = false;
 
   g_numPacketsSent = 0;
   g_numPacketsReceived = 0;
   g_numPacketsDropped = 0;
   g_maxPackets = 1000;
+  // Terminate the simulation if no progress is made for 100 slots
+  g_maxSlotsWithoutProgress = 100;
 
   CommandLine cmd;
   cmd.AddValue ("lambda", "Arrival lambda (i.e. rate, or 1/mean); units of slots", lambda);
   cmd.AddValue("maxPackets", "the number of packets to send", g_maxPackets);
   cmd.AddValue("numSenders", "number of sendingNodes" , numSenders);
+  cmd.AddValue("verbose", "verbose output", verbose);
   cmd.Parse (argc, argv);
 
   Ptr<ExponentialRandomVariable> ranVar = CreateObject<ExponentialRandomVariable> (); 
@@ -291,14 +326,26 @@ main (int argc, char *argv[])
   Simulator::Schedule (Seconds (0), &PoissonArrivalProcess, ranVar);
   Simulator::Schedule (slotTime, &SlotArrivalProcess, slotTime, 0, socketVector, backoffVar); 
 
+  if (verbose)
+    {
+      Simulator::Schedule (reportingInterval, &ReportProgress, reportingInterval);
+    }
   Simulator::Run ();
 
   uint32_t slots = Simulator::Now () / MicroSeconds (100) - 1;
-  std::cout << "New packet arrival rate (packets/slot): " << lambda << std::endl;
-  std::cout << "Simulation number of slot times: " << slots << std::endl;
-  std::cout << "Total number of packets sent (inc. retransmissions): " << g_numPacketsSent << std::endl;
-  std::cout << "Total number of packets received: " << g_numPacketsReceived << std::endl;
-  std::cout << "Throughput (number received/duration): " << static_cast<double> (g_numPacketsReceived) / slots << std::endl;
+  if (g_numPacketsReceived == g_maxPackets)
+    {
+      std::cout << "Simulation completed (successfully received " << g_numPacketsReceived << " by time "<< Simulator::Now ().GetSeconds () << "s)"<< std::endl;
+      std::cout << "New packet arrival rate (packets/slot): " << lambda << std::endl;
+      std::cout << "Simulation number of slot times: " << slots << std::endl;
+      std::cout << "Total number of packets sent (inc. retransmissions): " << g_numPacketsSent << std::endl;
+      std::cout << "Total number of packets received: " << g_numPacketsReceived << std::endl;
+      std::cout << "Throughput (number received/duration): " << static_cast<double> (g_numPacketsReceived) / slots << std::endl;
+    }
+  else
+    {
+      std::cout << "Simulation terminated due to instability at time "<< Simulator::Now ().GetSeconds () << "s); try lowering lambda"<< std::endl;
+    }
   
   Simulator::Destroy ();
   return 0;
