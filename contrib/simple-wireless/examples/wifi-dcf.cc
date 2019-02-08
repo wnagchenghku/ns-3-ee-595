@@ -193,6 +193,10 @@ int main (int argc, char *argv[])
 
   // Install traffic generation in all STAs
   PacketSocketAddress socket;
+  // Create a random variable to introduce jitter in the start times for
+  // the traffic generators
+  Ptr<UniformRandomVariable> startTimeVariable = CreateObject<UniformRandomVariable> ();
+  startTimeVariable->SetAttribute ("Max", DoubleValue (0.1));
   for (uint32_t i = 0; i < staDevs.GetN (); i++)
     {
       socket.SetSingleDevice (staDevs.Get (i)->GetIfIndex ());
@@ -202,7 +206,7 @@ int main (int argc, char *argv[])
       onoff.SetConstantRate (DataRate (dataRate), packetSize);
 
       ApplicationContainer apps = onoff.Install (stas.Get (i));
-      apps.Start (Seconds (1.0));
+      apps.StartWithJitter (Seconds (1.0), startTimeVariable);
       apps.Stop (Seconds (duration + 1));
     }
 
