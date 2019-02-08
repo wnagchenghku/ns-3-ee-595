@@ -52,3 +52,7 @@ def build(bld):
     obj = bld.create_ns3_program('slotted-aloha',
         ['core', 'mobility', 'network', 'internet', 'applications', 'simple-wireless'])
     obj.source = 'slotted-aloha.cc'
+
+    obj = bld.create_ns3_program('wifi-dcf',
+        ['core', 'mobility', 'network', 'internet', 'applications', 'wifi', 'simple-wireless', 'netanim'])
+    obj.source = 'wifi-dcf.cc'
