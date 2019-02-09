@@ -42,6 +42,9 @@ std::ofstream g_fileRxError;
 std::ofstream g_filePhyTx;
 std::ofstream g_fileState;
 
+// Define a packet counter, to assist in receive throughput
+uint64_t g_packetCount;
+
 // Parse context strings of the form "/NodeList/3/DeviceList/1/Mac/Assoc"
 // to extract the NodeId
 uint32_t
@@ -62,6 +65,7 @@ bool
 ApRxTrace (Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t protocol, const Address &from)
 {
   g_fileApRx << Simulator::Now ().GetSeconds () << " 0 " << Mac48Address::ConvertFrom (from) << " " << p->GetSize () << std::endl;
+  g_packetCount++;
   return true;
 }
 
@@ -125,6 +129,8 @@ int main (int argc, char *argv[])
   g_fileRxError.open (fileNameRxError.c_str(), std::ofstream::out);
   g_filePhyTx.open (fileNamePhyTx.c_str(), std::ofstream::out);
   g_fileState.open (fileNameState.c_str(), std::ofstream::out);
+
+  g_packetCount = 0;
 
   Packet::EnablePrinting ();
 
@@ -251,6 +257,9 @@ int main (int argc, char *argv[])
     }
 
   Simulator::Run ();
+
+  std::cout << "Throughput observed at AP: " << ((g_packetCount * packetSize * 8)/duration)/1e6 << " Mb/s" << std::endl;
+
   Simulator::Destroy ();
 
   g_fileApRx.close ();
