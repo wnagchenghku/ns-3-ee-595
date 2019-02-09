@@ -99,7 +99,7 @@ int main (int argc, char *argv[])
   uint32_t rtsThreshold = 2200;
   uint32_t packetSize = 1900;
   double duration = 10; // seconds; simulation will run for 'duration + 1'
-  std::string dataRate = "500Kb/s";
+  double packetArrivalRate = 1; // 1 per second
   std::string fileNameApRx = "wifi-dcf-ap-rx-trace.dat";
   std::string fileNameStaTx = "wifi-dcf-sta-tx-trace.dat";
   std::string fileNameRxOk = "wifi-dcf-rx-ok-trace.dat";
@@ -112,7 +112,7 @@ int main (int argc, char *argv[])
   cmd.AddValue ("pcap", "Print pcap trace information if true", pcap);
   cmd.AddValue ("animate", "Print animation trace if true", animate);
   cmd.AddValue ("packetSize", "Set packet size (bytes)", packetSize);
-  cmd.AddValue ("dataRate", "Set data rate per STA", dataRate);
+  cmd.AddValue ("packetArrivalRate", "Packet arrival rate per second", packetArrivalRate);
   cmd.AddValue ("numStas", "Number of STA devices", numStas);
   cmd.AddValue ("duration", "Duration of data logging phase (s)", duration);
   cmd.AddValue ("radius", "Radius for node dropping around AP (m)", radius);
@@ -197,20 +197,24 @@ int main (int argc, char *argv[])
   // the traffic generators
   Ptr<UniformRandomVariable> startTimeVariable = CreateObject<UniformRandomVariable> ();
   startTimeVariable->SetAttribute ("Max", DoubleValue (0.1));
+  // Convert packet arrival rate (packets per second) to a data rate in bps
+  uint64_t bps = static_cast<uint64_t> (packetArrivalRate * packetSize * 8);
   for (uint32_t i = 0; i < staDevs.GetN (); i++)
     {
       socket.SetSingleDevice (staDevs.Get (i)->GetIfIndex ());
       socket.SetPhysicalAddress (apDev.Get (0)->GetAddress ());
       socket.SetProtocol (1);
       OnOffHelper onoff ("ns3::PacketSocketFactory", Address (socket));
-      onoff.SetConstantRate (DataRate (dataRate), packetSize);
+      onoff.SetConstantRate (DataRate (bps), packetSize);
 
       ApplicationContainer apps = onoff.Install (stas.Get (i));
       apps.StartWithJitter (Seconds (1.0), startTimeVariable);
-      apps.Stop (Seconds (duration + 1));
+      // Account for up to 100 ms of jitter in the start time
+      apps.Stop (Seconds (duration + 1) + MilliSeconds (100));
     }
 
-  Simulator::Stop (Seconds (duration + 1));
+  // Account for up to 100 ms of jitter in the app start times
+  Simulator::Stop (Seconds (duration + 1) + MilliSeconds (100));
 
   // Set traces
   Ptr<WifiNetDevice> apNetDevice = DynamicCast<WifiNetDevice> (apDev.Get (0));
