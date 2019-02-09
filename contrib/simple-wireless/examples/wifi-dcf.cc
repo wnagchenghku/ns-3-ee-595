@@ -90,7 +90,10 @@ PhyTxTrace (std::string context, Ptr<const Packet> packet, WifiMode mode, WifiPr
 void
 PhyStateTrace (std::string context, Time start, Time duration, WifiPhyState state)
 {
-  g_fileState << Simulator::Now ().GetSeconds () << " " << ContextToNodeId (context) << " state: " << state << " start: " << std::fixed << std::setprecision (6) << start.GetSeconds () << " duration " << duration.GetSeconds () << std::endl;
+  if (state != WifiPhyState::CCA_BUSY)
+    {
+      g_fileState << Simulator::Now ().GetSeconds () << " " << ContextToNodeId (context) << " state: " << state << " start: " << std::fixed << std::setprecision (6) << start.GetSeconds () << " duration " << duration.GetSeconds () << std::endl;
+    }
 }
 
 int main (int argc, char *argv[])
