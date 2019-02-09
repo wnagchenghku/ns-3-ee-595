@@ -105,6 +105,8 @@ int main (int argc, char *argv[])
   uint32_t radius = 25; // m
   uint32_t rtsThreshold = 2200;
   uint32_t packetSize = 1900;
+  uint32_t cwMin = 15;
+  uint32_t cwMax = 1023;
   double duration = 10; // seconds; simulation will run for 'duration + 1'
   double packetArrivalRate = 1; // 1 per second
   std::string fileNameApRx = "wifi-dcf-ap-rx-trace.dat";
@@ -121,6 +123,8 @@ int main (int argc, char *argv[])
   cmd.AddValue ("packetSize", "Set packet size (bytes)", packetSize);
   cmd.AddValue ("packetArrivalRate", "Packet arrival rate per second", packetArrivalRate);
   cmd.AddValue ("numStas", "Number of STA devices", numStas);
+  cmd.AddValue ("cwMin", "CwMin parameter of DCF", cwMin);
+  cmd.AddValue ("cwMax", "CwMax parameter of DCF", cwMax);
   cmd.AddValue ("duration", "Duration of data logging phase (s)", duration);
   cmd.AddValue ("radius", "Radius for node dropping around AP (m)", radius);
   cmd.AddValue ("rtsThreshold", "Packet size threshold for RTS (bytes)", rtsThreshold);
@@ -181,6 +185,11 @@ int main (int argc, char *argv[])
   wifiMac.SetType ("ns3::ApWifiMac",
                    "Ssid", SsidValue (ssid));
   apDev =  wifi.Install (wifiPhy, wifiMac, ap);
+
+  // Some Wi-Fi attributes must be set at post-construction time when
+  // SetStandard() is used; MinCw and MaxCw are two such attributes
+  Config::Set ("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Mac/$ns3::RegularWifiMac/Txop/MinCw", UintegerValue (cwMin));
+  Config::Set ("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Mac/$ns3::RegularWifiMac/Txop/MaxCw", UintegerValue (cwMax));
 
   // The mobility model places nodes; here, within a disc of a given radius
   MobilityHelper mobility;
