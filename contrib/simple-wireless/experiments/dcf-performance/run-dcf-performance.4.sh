@@ -17,20 +17,22 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 
-# This program runs the wifi-dcf experiment, for the 'Experiment 1 Network
-# Saturation Throughput Versus Number Of Nodes' case, and generates a plot
-# that can be used for answering question 1.
+# This script runs the wifi-dcf experiment, for the 'Experiment 4 Fairness'
+# case.  It is very similar to the first question regarding throughput vs.
+# number of nodes, but the data being plotted is different.
 # 
-# Results are stored in a timestamped 'results' directory
-# 
-# All trace files from each trial (for n=5, 10, 15, etc.) are stored in
-# the results directory, so that you can consult them later.  The number of
-# stations is suffixed to the file name; e.g. the 
-# 'wifi-dcf-rx-error-trace.5.dat' is the trace file corresponding to the 
-# n=5 case.  These can be used to answer question 3.
+# The number of stations is suffixed to the file name; e.g. the 
+# 'wifi-dcf-state-trace.10.dat' is the trace file corresponding to the 
+# n=10 case.  
 #
-# The other main output is the PDF plot named 
-# 'wifi-dcf-expt1-throughput-vs-numStas.pdf'
+# Results are stored in a timestamped 'results' directory.  There are a few
+# key files that you will want for the solution:
+# 1) wifi-dcf-tx-times.dat (transmission times per node)
+# 2) wifi-dcf-idle-time-vs-num-nodes.pdf (plot)
+# 3) wifi-dcf-success-collision.10.dat (count of successes and collisions for 
+#    the 10-node scenario)
+# 4) wifi-dcf-success-probability-vs-number-of-nodes.pdf (plot)
+# 
 
 set -e
 set -o errexit
@@ -49,7 +51,7 @@ calc()
 
 trap control_c SIGINT
 
-dirname=dcf-performance-expt1
+dirname=dcf-performance-expt4
 
 if test ! -f ../../../../waf ; then
     echo "please run this program from within the directory `dirname $0`, like this:"
@@ -76,11 +78,11 @@ if [ -e wifi-dcf-ap-rx-trace.dat ]; then
 fi
 
 # Avoid accidentally overwriting existing data files; confirm deletion first
-if [ -e wifi-dcf-expt1.dat ]; then
-    echo "Remove existing wifi-dcf-expt1.dat output file from top-level directory?"
+if [ -e wifi-dcf-expt4.dat ]; then
+    echo "Remove existing wifi-dcf-expt4.dat output file from top-level directory?"
     select yn in "Yes" "No"; do
         case $yn in
-            Yes ) echo "Removing..."; rm -rf wifi-dcf-expt1.dat; break;;
+            Yes ) echo "Removing..."; rm -rf wifi-dcf-expt4.dat; break;;
             No ) echo "Exiting..."; exit;;
         esac
     done
@@ -93,7 +95,7 @@ RngRun=1
 mkdir -p ${resultsDir}
 
 # Echo remaining commands to standard output, to track progress
-for numStas in 5 10 15 20 25 30 35 40
+for numStas in 10 20 30 40
 do
   arrivalRate=$(calc 4000/$numStas)
   set -x
@@ -127,32 +129,30 @@ do
   # Compute the throughput and append it to the data file that will be plotted
   throughput=$(bc -l <<< "$packets * 1900 * 8 / 10")
   throughputMbps=$(bc -l <<< "$throughput / 1000000")
-  echo "$numStas $throughputMbps" >> wifi-dcf-expt1.dat
+  echo "$numStas $throughputMbps" >> wifi-dcf-expt4.dat
 done
 
 # Move plot data file to the results directory
-mv wifi-dcf-expt1.dat ${resultsDir}
-
-# Configure the matplotlib plotting program
-fileName='wifi-dcf-expt1.dat'
-plotName='wifi-dcf-expt1-throughput-vs-numStas.pdf'
-plotTitle='Throughput vs. number of nodes'
-
-cd ${resultsDir}
-echo `pwd`
-
-if [[ ! -f ../../../utils/plot-lines.py ]]; then
-  echo 'plot file not found, exiting...'
-  exit
-fi
-
-# Specify where the columns of data are to plot.  Here, the xcolumn data
-# (numStas) is in column 0, the y column data in column 1
-/usr/bin/python ../../../utils/plot-lines.py --title="${plotTitle}" --xlabel='number of STAs' --ylabel='Throughput (Mb/s)' --xcol=0 --ycol=1 --ymax=40 --fileName=${fileName} --plotName=${plotName}
+mv wifi-dcf-expt4.dat ${resultsDir}
 
 cd $experimentDir
-
 # Move and copy files to the results directory
 cp $0 ${resultsDir}
-cp ../utils/plot-lines.py ${resultsDir}
 git show --name-only > ${resultsDir}/git-commit.txt
+cp plot-idle-times.py ${resultsDir}
+cp sum-transmit-times.py ${resultsDir}
+cp process-success-collision.py ${resultsDir}
+cd ${resultsDir}
+
+# Call the plot-idle-times.py program to generate a plot of idle time vs
+# number of nodes:
+/usr/bin/python plot-idle-times.py
+
+# Call the sum-transmit-times.py program to generate table data for the 
+# transmit times
+/usr/bin/python sum-transmit-times.py
+
+# Call the success-collision.py program to generate table data and plot
+# for success and collision questions
+/usr/bin/python process-success-collision.py
+
