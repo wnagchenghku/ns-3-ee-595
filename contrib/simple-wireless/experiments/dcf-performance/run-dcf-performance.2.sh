@@ -77,10 +77,10 @@ fi
 
 # Avoid accidentally overwriting existing data files; confirm deletion first
 if [ -e wifi-dcf-expt2.dat ]; then
-    echo "Remove existing wifi-dcf-expt1.dat output file from top-level directory?"
+    echo "Remove existing wifi-dcf-expt2.dat output file from top-level directory?"
     select yn in "Yes" "No"; do
         case $yn in
-            Yes ) echo "Removing..."; rm -rf wifi-dcf-expt1.dat; break;;
+            Yes ) echo "Removing..."; rm -rf wifi-dcf-expt2.dat; break;;
             No ) echo "Exiting..."; exit;;
         esac
     done
@@ -90,7 +90,8 @@ fi
 # For this experiment, you will not need to change this
 RngRun=1
 
-numStas=10
+# Number of STA nodes
+numStas=20
 
 mkdir -p ${resultsDir}
 
@@ -100,32 +101,32 @@ do
   arrivalRate=$(calc 4000/$numStas)
   cwmax=$(bc -l <<< "($cwmin + 1) * 64 -1")
   set -x
-  ./waf --run "wifi-dcf --numStas=${numStas} --packetArrivalRate=${arrivalRate} cwMin=${cwmin} --cwMax=${cwmax}"
+  ./waf --run "wifi-dcf --numStas=${numStas} --packetArrivalRate=${arrivalRate} --cwMin=${cwmin} --cwMax=${cwmax}"
   { set +x; } 2>/dev/null
   packets=$(wc -l wifi-dcf-ap-rx-trace.dat | awk '{ print $1 }' )
   if [ -f wifi-dcf-0-0.pcap ]; then
-    mv wifi-dcf-0-0.pcap ${resultsDir}/wifi-dcf-0-0.${numStas}.pcap
+    mv wifi-dcf-0-0.pcap ${resultsDir}/wifi-dcf-0-0.${cwmin}.pcap
   fi
   if [ -f wifi-dcf-animation.xml ]; then
-    mv wifi-dcf-animation.xml ${resultsDir}/wifi-dcf-animation.${numStas}.xml
+    mv wifi-dcf-animation.xml ${resultsDir}/wifi-dcf-animation.${cwmin}.xml
   fi
   if [ -f wifi-dcf-ap-rx-trace.dat ]; then
-    mv wifi-dcf-ap-rx-trace.dat ${resultsDir}/wifi-dcf-ap-rx-trace.${numStas}.dat
+    mv wifi-dcf-ap-rx-trace.dat ${resultsDir}/wifi-dcf-ap-rx-trace.${cwmin}.dat
   fi
   if [ -f wifi-dcf-rx-error-trace.dat ]; then
-    mv wifi-dcf-rx-error-trace.dat ${resultsDir}/wifi-dcf-rx-error-trace.${numStas}.dat
+    mv wifi-dcf-rx-error-trace.dat ${resultsDir}/wifi-dcf-rx-error-trace.${cwmin}.dat
   fi
   if [ -f wifi-dcf-rx-ok-trace.dat ]; then
-    mv wifi-dcf-rx-ok-trace.dat ${resultsDir}/wifi-dcf-rx-ok-trace.${numStas}.dat
+    mv wifi-dcf-rx-ok-trace.dat ${resultsDir}/wifi-dcf-rx-ok-trace.${cwmin}.dat
   fi
   if [ -f wifi-dcf-state-trace.dat ]; then
-    mv wifi-dcf-state-trace.dat ${resultsDir}/wifi-dcf-state-trace.${numStas}.dat
+    mv wifi-dcf-state-trace.dat ${resultsDir}/wifi-dcf-state-trace.${cwmin}.dat
   fi
   if [ -f wifi-dcf-sta-tx-trace.dat ]; then
-    mv wifi-dcf-sta-tx-trace.dat ${resultsDir}/wifi-dcf-sta-tx-trace.${numStas}.dat
+    mv wifi-dcf-sta-tx-trace.dat ${resultsDir}/wifi-dcf-sta-tx-trace.${cwmin}.dat
   fi
   if [ -f wifi-dcf.tr ]; then
-    mv wifi-dcf.tr ${resultsDir}/wifi-dcf.${numStas}.tr
+    mv wifi-dcf.tr ${resultsDir}/wifi-dcf.${cwmin}.tr
   fi
   # Compute the throughput and append it to the data file that will be plotted
   throughput=$(bc -l <<< "$packets * 1900 * 8 / 10")
@@ -134,12 +135,12 @@ do
 done
 
 # Move plot data file to the results directory
-mv wifi-dcf-expt2.dat ${resultsDir}
+mv wifi-dcf-expt2.dat ${resultsDir}/wifi-dcf-expt2.${numStas}.dat
 
 # Configure the matplotlib plotting program
-fileName='wifi-dcf-expt2.dat'
-plotName='wifi-dcf-expt2-throughput-vs-cwMin.pdf'
-plotTitle='Throughput vs. initial backof window'
+fileName="wifi-dcf-expt2.${numStas}.dat"
+plotName="wifi-dcf-expt2-throughput-vs-cwMin.${numStas}.pdf"
+plotTitle="Throughput vs. initial backof window (numStas=${numStas})"
 
 cd ${resultsDir}
 echo `pwd`
@@ -150,8 +151,8 @@ if [[ ! -f ../../../utils/plot-lines.py ]]; then
 fi
 
 # Specify where the columns of data are to plot.  Here, the xcolumn data
-# (numStas) is in column 0, the y column data in column 1
-/usr/bin/python ../../../utils/plot-lines.py --title="${plotTitle}" --xlabel='Initial backoff window' --ylabel='Throughput (Mb/s)' --xcol=0 --ycol=1 --ymax=40 --fileName=${fileName} --plotName=${plotName}
+# (cwmin) is in column 0, the y column data in column 1
+/usr/bin/python ../../../utils/plot-lines.py --title="${plotTitle}" --xlabel='Initial backoff window (cwmin)' --ylabel='Throughput (Mb/s)' --xcol=0 --ycol=1 --ymax=40 --fileName=${fileName} --plotName=${plotName}
 
 cd $experimentDir
 
