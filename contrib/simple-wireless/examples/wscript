@@ -56,3 +56,7 @@ def build(bld):
     obj = bld.create_ns3_program('wifi-dcf',
         ['core', 'mobility', 'network', 'internet', 'applications', 'wifi', 'simple-wireless', 'netanim'])
     obj.source = 'wifi-dcf.cc'
+
+    obj = bld.create_ns3_program('lte-tcp-x2-handover',
+        ['core', 'mobility', 'network', 'internet', 'applications', 'lte', 'point-to-point'])
+    obj.source = 'lte-tcp-x2-handover.cc'
