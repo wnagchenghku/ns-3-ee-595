@@ -103,6 +103,10 @@ RrFfMacScheduler::GetTypeId (void)
                    UintegerValue (0),
                    MakeUintegerAccessor (&RrFfMacScheduler::m_ulGrantMcs),
                    MakeUintegerChecker<uint8_t> ())
+    .AddTraceSource ("WidebandCqiReport",
+                     "Wideband CQI report received",
+                     MakeTraceSourceAccessor (&RrFfMacScheduler::m_widebandCqiReport),
+                     "ns3::RrFfMacScheduler::WidebandCqiReportTracedCallback")
   ;
   return tid;
 }
@@ -978,10 +982,12 @@ RrFfMacScheduler::DoSchedDlTriggerReq (const struct FfMacSchedSapProvider::Sched
             }
           else
             {
+              NS_LOG_INFO ("GetMcsFromCqi: " << (uint16_t) (*itCqi).second);
               newDci.m_mcs.push_back ( m_amc->GetMcsFromCqi ((*itCqi).second) );
             }
         }
       int tbSize = (m_amc->GetDlTbSizeFromMcs (newDci.m_mcs.at (0), rbgPerTb * rbgSize) / 8);
+      NS_LOG_INFO ("GetDlTbSizeFromMcs: " << tbSize);
       uint16_t rlcPduSize = tbSize / lcNum;
       while ((*it).m_rnti == newEl.m_rnti)
         {
@@ -1124,6 +1130,7 @@ RrFfMacScheduler::DoSchedDlCqiInfoReq (const struct FfMacSchedSapProvider::Sched
               itTimers = m_p10CqiTimers.find (rnti);
               (*itTimers).second = m_cqiTimersThreshold;
             }
+          m_widebandCqiReport (rnti, params.m_cqiList.at (i).m_wbCqi.at(0));
         }
       else if ( params.m_cqiList.at (i).m_cqiType == CqiListElement_s::A30 )
         {
