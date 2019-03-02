@@ -31,7 +31,7 @@
  *      |     |                 eNodeB              eNodeB
  *      |   d |
  *      |     |
- *      |     |                                             d = distance
+ *      |     |                                             d = x2Distance
  *            o (0, 0, 0)                                   y = yDistanceForUe
  */
 
@@ -237,7 +237,7 @@ main (int argc, char *argv[])
   uint16_t numberOfEnbs = 2;
 
   // Constants that can be changed by command-line arguments
-  double distance = 500.0; // m
+  double x2Distance = 500.0; // m
   double yDistanceForUe = 1000.0;   // m
   double speed = 20;       // m/s
   double enbTxPowerDbm = 46.0;
@@ -262,6 +262,7 @@ main (int argc, char *argv[])
   // Command line arguments
   CommandLine cmd;
   cmd.AddValue ("speed", "Speed of the UE (m/s)", speed);
+  cmd.AddValue ("x2Distance", "Distance between eNB at X2 (meters)", x2Distance);
   cmd.AddValue ("yDistanceForUe", "y value (meters) for UE", yDistanceForUe);
   cmd.AddValue ("enbTxPowerDbm", "TX power (dBm) used by eNBs", enbTxPowerDbm);
   cmd.AddValue ("useRlcUm", "Use LTE RLC UM mode", useRlcUm);
@@ -281,7 +282,7 @@ main (int argc, char *argv[])
   else if (speed >= 10)
     {
       // Handover around the middle of the total simTime
-      simTime = (double)(numberOfEnbs + 1) * distance / speed;
+      simTime = (double)(numberOfEnbs + 1) * x2Distance / speed;
     }
 
   if (verbose)
@@ -297,7 +298,7 @@ main (int argc, char *argv[])
     }
 
   g_ueMeasurements.open ((traceFilePrefix + ".ue-measurements.dat").c_str(), std::ofstream::out);
-  g_ueMeasurements << "# time   cellId   isServingCell?  RSRP(dBm)  RSRQ(dBm)" << std::endl;
+  g_ueMeasurements << "# time   cellId   isServingCell?  RSRP(dBm)  RSRQ(dB)" << std::endl;
   g_packetSinkRx.open ((traceFilePrefix + ".tcp-receive.dat").c_str(), std::ofstream::out);
   g_packetSinkRx << "# time   bytesRx" << std::endl;
   g_cqiTrace.open ((traceFilePrefix + ".cqi.dat").c_str(), std::ofstream::out);
@@ -367,7 +368,7 @@ main (int argc, char *argv[])
   Ptr<ListPositionAllocator> enbPositionAlloc = CreateObject<ListPositionAllocator> ();
   for (uint16_t i = 0; i < numberOfEnbs; i++)
     {
-      Vector enbPosition (distance * (i + 1), distance, 0);
+      Vector enbPosition (x2Distance * (i + 1), x2Distance, 0);
       enbPositionAlloc->Add (enbPosition);
     }
   MobilityHelper enbMobility;
@@ -430,7 +431,7 @@ main (int argc, char *argv[])
   // Tracing
   if (pcap)
     {
-      p2ph.EnablePcapAll ("lena-handover-performance");
+      p2ph.EnablePcapAll ("lte-tcp-x2-handover");
     }
 
   lteHelper->EnablePhyTraces ();
