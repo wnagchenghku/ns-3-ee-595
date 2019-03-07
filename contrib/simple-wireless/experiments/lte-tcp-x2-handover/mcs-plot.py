@@ -21,6 +21,8 @@ for line in fd:
     l = line.split()
     if line.startswith("#"):
         continue
+    if line.startswith("%"):
+        continue
     if l[1] == "1":
         times1.append(float(l[0]))
         values1.append(int(l[6]))
@@ -34,11 +36,13 @@ if len(times1) == 0:
     sys.exit(1)
 
 plt.scatter(times1, values1, marker='.', label='cell 1', color='red')
-plt.scatter(times2, values2, marker='.', label='cell 2', color='blue')
+if len(times2) != 0:
+    plt.scatter(times2, values2, marker='.', label='cell 2', color='blue')
 plt.xlabel('Time (s)')
-plt.ylabel('McS')
+plt.ylabel('MCS')
 plt.title(args.title)
 #plt.show()
+plt.ylim([0,30])
 plotname = args.plotName
 plt.savefig(plotname, format='pdf')
 plt.close()

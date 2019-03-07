@@ -34,9 +34,11 @@ if len(times1) == 0:
     sys.exit(1)
 
 plt.scatter(times1, values1, marker='.', label='cell 1', color='red')
-plt.scatter(times2, values2, marker='.', label='cell 2', color='blue')
+if len(times2) != 0:
+    plt.scatter(times2, values2, marker='.', label='cell 2', color='blue')
 plt.xlabel('Time (s)')
 plt.ylabel('CQI')
+plt.ylim([0,16])
 plt.title(args.title)
 #plt.show()
 plotname = args.plotName
