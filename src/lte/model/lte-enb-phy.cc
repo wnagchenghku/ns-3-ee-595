@@ -487,6 +487,7 @@ LteEnbPhy::GeneratePowerAllocationMap (uint16_t rnti, int rbId)
     }
 
   m_dlPowerAllocationMap.insert (std::pair<int, double> (rbId, rbgTxPower));
+  std::cout << Simulator::Now ().GetSeconds () << " phy " << rnti << " " << rbId << " " << rbgTxPower << std::endl;
 }
 
 Ptr<SpectrumValue>

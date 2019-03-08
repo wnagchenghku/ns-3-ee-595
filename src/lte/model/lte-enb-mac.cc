@@ -1078,7 +1078,6 @@ LteEnbMac::DoSchedDlConfigInd (FfMacSchedSapUser::SchedDlConfigIndParameters ind
       msg->SetDci (ind.m_buildDataList.at (i).m_dci);
       m_enbPhySapProvider->SendLteControlMessage (msg);
     }
-
   // Fire the trace with the DL information
   for (  uint32_t i  = 0; i < ind.m_buildDataList.size (); i++ )
     {
