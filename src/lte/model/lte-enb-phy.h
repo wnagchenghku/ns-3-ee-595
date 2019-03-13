@@ -319,6 +319,15 @@ public:
   typedef void (* ReportInterferenceTracedCallback)
     (uint16_t cellId, Ptr<SpectrumValue> spectrumValue);
 
+  /**
+   * TracedCallback signature for the report of downlink RBG allocation.
+   *
+   * \param [in] rbgAllocation Vector of RBG allocations
+   */
+  typedef void (* ReportDlRbgAllocationTracedCallback)
+    (std::vector<int> rbgAllocation);
+
+
 private:
 
   // LteEnbCphySapProvider forwarded methods
@@ -441,6 +450,9 @@ private:
 
   std::vector <int> m_dlDataRbMap; ///< DL data RB map
 
+  // Store which RNTI is assigned to each RB
+  std::vector <int> m_dlRbgAllocation;
+
   /// For storing info on future receptions.
   std::vector< std::list<UlDciLteControlMessage> > m_ulDciQueue;
 
@@ -487,6 +499,12 @@ private:
    * Exporting cell ID, RNTI, SINR in linear unit and ComponentCarrierId
    */
   TracedCallback<uint16_t, uint16_t, double, uint8_t> m_reportUeSinr;
+
+  /**
+   * The `ReportDlRbgAllocation` trace source. Reporting the downlink RBG
+   * allocation vector.
+   */
+  TracedCallback<std::vector<int> > m_reportDlRbgAllocation;
   /**
    * The `UeSinrSamplePeriod` trace source. The sampling period for reporting
    * UEs' SINR stats.

@@ -168,6 +168,7 @@ LteEnbPhy::LteEnbPhy (Ptr<LteSpectrumPhy> dlPhy, Ptr<LteSpectrumPhy> ulPhy)
   m_harqPhyModule = Create <LteHarqPhy> ();
   m_downlinkSpectrumPhy->SetHarqPhyModule (m_harqPhyModule);
   m_uplinkSpectrumPhy->SetHarqPhyModule (m_harqPhyModule);
+  m_dlRbgAllocation.resize (25); // Reserve space for 25 RBGs
 }
 
 TypeId
@@ -241,6 +242,10 @@ LteEnbPhy::GetTypeId (void)
                    PointerValue (),
                    MakePointerAccessor (&LteEnbPhy::GetUlSpectrumPhy),
                    MakePointerChecker <LteSpectrumPhy> ())
+    .AddTraceSource ("ReportDlRbgAllocation",
+                     "Report downlink RBG allocation",
+                     MakeTraceSourceAccessor (&LteEnbPhy::m_reportDlRbgAllocation),
+                     "ns3::LteEnbPhy::ReportDlRbgAllocationTracedCallback")
   ;
   return tid;
 }
@@ -487,7 +492,7 @@ LteEnbPhy::GeneratePowerAllocationMap (uint16_t rnti, int rbId)
     }
 
   m_dlPowerAllocationMap.insert (std::pair<int, double> (rbId, rbgTxPower));
-  std::cout << Simulator::Now ().GetSeconds () << " phy " << rnti << " " << rbId << " " << rbgTxPower << std::endl;
+  m_dlRbgAllocation[rbId] = rnti;
 }
 
 Ptr<SpectrumValue>
@@ -680,6 +685,8 @@ LteEnbPhy::StartSubFrame (void)
   // process the current burst of control messages
   std::list<Ptr<LteControlMessage> > ctrlMsg = GetControlMessages ();
   m_dlDataRbMap.clear ();
+  m_dlRbgAllocation.clear ();
+  m_dlRbgAllocation.resize (25);
   m_dlPowerAllocationMap.clear ();
   if (ctrlMsg.size () > 0)
     {
@@ -761,6 +768,8 @@ LteEnbPhy::StartSubFrame (void)
 
         }
     }
+
+  m_reportDlRbgAllocation (m_dlRbgAllocation);
 
   SendControlChannels (ctrlMsg);
 

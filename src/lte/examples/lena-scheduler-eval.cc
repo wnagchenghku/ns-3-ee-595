@@ -37,6 +37,19 @@ using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE ("LenaSchedulerEval");
 
+std::ofstream g_reportDlRbgAllocation;
+
+void
+NotifyDlRbgAllocation (std::vector<int> dlRbgAllocation)
+{
+  g_reportDlRbgAllocation << Simulator::Now ().GetSeconds ();
+  for (uint32_t i = 0; i < dlRbgAllocation.size (); i++)
+    {
+      g_reportDlRbgAllocation << " " << dlRbgAllocation[i];
+    }
+  g_reportDlRbgAllocation << std::endl;
+}
+
 #if 0
 LenaTestRrFfMacSchedulerSuite::LenaTestRrFfMacSchedulerSuite ()
   : TestSuite ("lte-rr-ff-mac-scheduler", SYSTEM)
@@ -178,7 +191,6 @@ struct DlSchedulingCallbackInfo
   uint8_t  componentCarrierId; ///< component carrier ID
 };
 
-#endif
 
 // Parse context strings of the form "/NodeList/3/DeviceList/1/Mac/Assoc"
 // to extract the NodeId
@@ -197,6 +209,7 @@ NotifyDlScheduling (std::string context, struct DlSchedulingCallbackInfo info)
 }
 
 
+#endif
   // DOWNLINK- DISTANCE 0 -> MCS 28 -> Itbs 26 (from table 7.1.7.2.1-1 of 36.213)
   // 15 users -> 2 PRB at Itbs 26 * 0.8 -> 148 -> 148000 bytes/sec
   // 15 users -> 3 PRB at Itbs 26 -> 277 bytes * 8/15 UE/TTI -> 147730 bytes/sec
@@ -208,11 +221,12 @@ int main (int argc, char *argv[])
   double m_interval = 1; ///< ms
   uint32_t m_packetSize = 200; ///< bytes
   double m_thrRefDl = 148000; ///< the DL throughput reference
-  double m_thrRefUl = 147730; ///< the UL throughput reference
-  bool m_errorModelEnabled = true; ///< indicates whether the error model is enabled
+  bool m_errorModelEnabled = false; ///< indicates whether the error model is enabled
 
   CommandLine cmd;
   cmd.Parse (argc, argv);
+
+  g_reportDlRbgAllocation.open ("lena-scheduler-eval-dl-rbg-allocation.dat", std::ofstream::out);
 
   if (!m_errorModelEnabled)
     {
@@ -258,7 +272,6 @@ int main (int argc, char *argv[])
   ipv4h.SetBase ("1.0.0.0", "255.0.0.0");
   Ipv4InterfaceContainer internetIpIfaces = ipv4h.Assign (internetDevices);
   // interface 0 is localhost, 1 is the p2p device
-  Ipv4Address remoteHostAddr = internetIpIfaces.GetAddress (1);
 
   Ipv4StaticRoutingHelper ipv4RoutingHelper;
   Ptr<Ipv4StaticRouting> remoteHostStaticRouting = ipv4RoutingHelper.GetStaticRouting (remoteHost->GetObject<Ipv4> ());
@@ -334,30 +347,20 @@ int main (int argc, char *argv[])
 
   // Install downlink and uplink applications
   uint16_t dlPort = 1234;
-  uint16_t ulPort = 2000;
   PacketSinkHelper dlPacketSinkHelper ("ns3::UdpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), dlPort));
   ApplicationContainer clientApps;
   ApplicationContainer serverApps;
 
   for (uint32_t u = 0; u < ueNodes.GetN (); ++u)
     {
-      ++ulPort;
-      PacketSinkHelper ulPacketSinkHelper ("ns3::UdpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), ulPort));
-      serverApps.Add (ulPacketSinkHelper.Install (remoteHost));  // receive packets from UEs
       serverApps.Add (dlPacketSinkHelper.Install (ueNodes.Get (u))); // receive packets from remotehost
 
-      UdpClientHelper dlClient (ueIpIface.GetAddress (u), dlPort); // uplink packets generator
+      UdpClientHelper dlClient (ueIpIface.GetAddress (u), dlPort);
       dlClient.SetAttribute ("Interval", TimeValue (MilliSeconds (m_interval)));
       dlClient.SetAttribute ("MaxPackets", UintegerValue (1000000));
       dlClient.SetAttribute ("PacketSize", UintegerValue (m_packetSize));
 
-      UdpClientHelper ulClient (remoteHostAddr, ulPort);           // downlink packets generator
-      ulClient.SetAttribute ("Interval", TimeValue (MilliSeconds (m_interval)));
-      ulClient.SetAttribute ("MaxPackets", UintegerValue (1000000));
-      ulClient.SetAttribute ("PacketSize", UintegerValue (m_packetSize));
-
       clientApps.Add (dlClient.Install (remoteHost));
-      clientApps.Add (ulClient.Install (ueNodes.Get (u)));
     }
 
   serverApps.Start (Seconds (0.001));
@@ -368,17 +371,18 @@ int main (int argc, char *argv[])
   Simulator::Stop (Seconds (statsStartTime + statsDuration - 0.0001));
 
   lteHelper->EnableRlcTraces ();
+  lteHelper->EnablePhyTraces ();
   Ptr<RadioBearerStatsCalculator> rlcStats = lteHelper->GetRlcStats ();
   rlcStats->SetAttribute ("StartTime", TimeValue (Seconds (statsStartTime)));
   rlcStats->SetAttribute ("EpochDuration", TimeValue (Seconds (statsDuration)));
 
-  Config::Connect ("/NodeList/*/DeviceList/*/$ns3::LteEnbNetDevice/ComponentCarrierMap/*/LteEnbMac/DlScheduling",
-                   MakeCallback (&NotifyDlScheduling));
+  //Config::Connect ("/NodeList/*/DeviceList/*/$ns3::LteEnbNetDevice/ComponentCarrierMap/*/LteEnbMac/DlScheduling", MakeCallback (&NotifyDlScheduling));
+  enbPhy->TraceConnectWithoutContext ("ReportDlRbgAllocation", MakeCallback (&NotifyDlRbgAllocation));
 
   Simulator::Run ();
 
   /**
-   * Check that the assignation is done in a RR fashion
+   * Check that the assignment is done in a RR fashion
    */
   NS_LOG_INFO ("DL - Test with " << m_nUser << " user(s) at distance " << m_dist);
   std::vector <uint64_t> dlDataRxed;
@@ -390,28 +394,11 @@ int main (int argc, char *argv[])
     {
       // get the imsi
       uint64_t imsi = ueDevs.Get (i)->GetObject<LteUeNetDevice> ()->GetImsi ();
-      uint8_t lcId = 3;
+      uint8_t lcId = 4;
       dlDataRxed.push_back (rlcStats->GetDlRxData (imsi, lcId));
       NS_LOG_INFO ("\tUser " << i << " imsi " << imsi << " lcid " << (uint16_t) lcId << " bytes rxed " << (double)dlDataRxed.at (i) << "  thr " << (double)dlDataRxed.at (i) / statsDuration << " ref " << m_thrRefDl);
-//      NS_TEST_ASSERT_MSG_EQ_TOL ((double)dlDataRxed.at (i) / statsDuration, m_thrRefDl, m_thrRefDl * tolerance, " Unfair Throughput!");
-    }
-
-  NS_LOG_INFO ("UL - Test with " << m_nUser << " user(s) at distance " << m_dist);
-  std::vector <uint64_t> ulDataRxed;
-  if (m_errorModelEnabled)
-    {
-      m_thrRefUl *= 0.95; // for couting the Vienna AMC behavior: BLER between 0% and 10%
-    }
-  for (int i = 0; i < m_nUser; i++)
-    {
-      // get the imsi
-      uint64_t imsi = ueDevs.Get (i)->GetObject<LteUeNetDevice> ()->GetImsi ();
-      // get the lcId
-      uint8_t lcId = 3;
-      ulDataRxed.push_back (rlcStats->GetUlRxData (imsi, lcId));
-      NS_LOG_INFO ("\tUser " << i << " imsi " << imsi << " lcid " << (uint16_t) lcId << " bytes rxed " << (double)ulDataRxed.at (i) << "  thr " << (double)ulDataRxed.at (i) / statsDuration << " ref " << m_thrRefUl << " txed " << rlcStats->GetUlTxData (imsi, lcId) / statsDuration);
-//    NS_TEST_ASSERT_MSG_EQ_TOL ((double)ulDataRxed.at (i) / statsDuration, m_thrRefUl, m_thrRefUl * tolerance, " Unfair Throughput!");
     }
 
   Simulator::Destroy ();
+  g_reportDlRbgAllocation.close ();
 }
