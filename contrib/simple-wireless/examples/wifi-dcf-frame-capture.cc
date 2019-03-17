@@ -224,26 +224,27 @@ int main (int argc, char *argv[])
   packetSocket.Install (ap);
 
   // Install traffic generation in all STAs
-  PacketSocketAddress socket;
-  // Create a random variable to introduce jitter in the start times for
-  // the traffic generators
-  Ptr<UniformRandomVariable> startTimeVariable = CreateObject<UniformRandomVariable> ();
-  startTimeVariable->SetAttribute ("Max", DoubleValue (0.1));
-  // Convert packet arrival rate (packets per second) to a data rate in bps
-  uint64_t bps = static_cast<uint64_t> (packetArrivalRate * packetSize * 8);
+  PacketSocketAddress socketAddr;
   for (uint32_t i = 0; i < staDevs.GetN (); i++)
     {
-      socket.SetSingleDevice (staDevs.Get (i)->GetIfIndex ());
-      socket.SetPhysicalAddress (apDev.Get (0)->GetAddress ());
-      socket.SetProtocol (1);
-      OnOffHelper onoff ("ns3::PacketSocketFactory", Address (socket));
-      onoff.SetConstantRate (DataRate (bps), packetSize);
-
-      ApplicationContainer apps = onoff.Install (stas.Get (i));
-      apps.StartWithJitter (Seconds (1.0), startTimeVariable);
-      // Account for up to 100 ms of jitter in the start time
-      apps.Stop (Seconds (duration + 1) + MilliSeconds (100));
+      socketAddr.SetSingleDevice (staDevs.Get (i)->GetIfIndex ());
+      socketAddr.SetPhysicalAddress (apDev.Get (0)->GetAddress ());
+      socketAddr.SetProtocol (1);
+      
+      Ptr<PacketSocketClient> client = CreateObject<PacketSocketClient> ();
+      client->SetRemote (socketAddr);
+      client->SetAttribute ("UsePoissonArrivalProcess", BooleanValue (true));
+      client->SetAttribute ("PoissonArrivalRate", DoubleValue (packetArrivalRate));
+      stas.Get (i)->AddApplication (client);
+      client->SetStartTime (Seconds (1.0));
+      client->SetStopTime (Seconds (duration + 1.0));
     }
+  Ptr<PacketSocketServer> server = CreateObject<PacketSocketServer> ();
+  socketAddr.SetSingleDevice (apDev.Get (0)->GetIfIndex ());
+  server->SetLocal (socketAddr);
+  ap.Get (0)->AddApplication (server);
+  server->SetStartTime (Seconds (1.0));
+  server->SetStopTime (Seconds (duration + 1.0));
 
   // Account for up to 100 ms of jitter in the app start times
   Simulator::Stop (Seconds (duration + 1) + MilliSeconds (100));

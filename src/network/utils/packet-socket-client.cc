@@ -28,6 +28,8 @@
 #include "ns3/socket-factory.h"
 #include "ns3/packet.h"
 #include "ns3/uinteger.h"
+#include "ns3/double.h"
+#include "ns3/random-variable-stream.h"
 #include "ns3/boolean.h"
 #include "ns3/abort.h"
 #include "packet-socket-client.h"
@@ -72,6 +74,16 @@ PacketSocketClient::GetTypeId (void)
                    MakeUintegerAccessor (&PacketSocketClient::SetPriority,
                                          &PacketSocketClient::GetPriority),
                    MakeUintegerChecker<uint8_t> ())
+    .AddAttribute ("UsePoissonArrivalProcess",
+                   "Whether to use Poisson arrival process",
+                   BooleanValue (false),
+                   MakeBooleanAccessor (&PacketSocketClient::m_usePoissonArrivalProcess),
+                   MakeBooleanChecker ())
+    .AddAttribute ("PoissonArrivalRate",
+                   "Arrival rate of packets (packets/sec)",
+                   DoubleValue (1.0),
+                   MakeDoubleAccessor (&PacketSocketClient::m_poissonArrivalRate),
+                   MakeDoubleChecker<double> (1e-9,1e9))
     .AddTraceSource ("Tx", "A packet has been sent",
                      MakeTraceSourceAccessor (&PacketSocketClient::m_txTrace),
                      "ns3::Packet::AddressTracedCallback")
@@ -147,7 +159,16 @@ PacketSocketClient::StartApplication (void)
   m_socket->SetRecvCallback (MakeNullCallback<void, Ptr<Socket> > ());
   if (!m_onDemand)
     {
-      m_sendEvent = Simulator::ScheduleNow (&PacketSocketClient::Send, this);
+      if (m_usePoissonArrivalProcess)
+        {
+          m_arrivalRv = CreateObject<ExponentialRandomVariable> ();
+          m_arrivalRv->SetAttribute ("Mean", DoubleValue (1/m_poissonArrivalRate));
+          m_sendEvent = Simulator::Schedule (Seconds (m_arrivalRv->GetValue ()), &PacketSocketClient::Send, this);
+        }
+      else
+        {
+          m_sendEvent = Simulator::ScheduleNow (&PacketSocketClient::Send, this);
+        }
     }
 }
 
@@ -213,7 +234,14 @@ PacketSocketClient::Send (void)
   if ((m_sent < m_maxPackets) || (m_maxPackets == 0))
     {
       m_txTrace (p, m_peerAddress);
-      m_sendEvent = Simulator::Schedule (m_interval, &PacketSocketClient::Send, this);
+      if (m_usePoissonArrivalProcess)
+        {
+          m_sendEvent = Simulator::Schedule (Seconds (m_arrivalRv->GetValue ()), &PacketSocketClient::Send, this);
+        }
+      else
+        {
+          m_sendEvent = Simulator::Schedule (m_interval, &PacketSocketClient::Send, this);
+        }
     }
 }
 

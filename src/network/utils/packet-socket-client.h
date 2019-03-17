@@ -30,6 +30,7 @@ namespace ns3 {
 
 class Socket;
 class Packet;
+class ExponentialRandomVariable;
 
 /**
  * \ingroup socket
@@ -112,6 +113,10 @@ private:
 
   /// Traced Callback: sent packets, source address.
   TracedCallback<Ptr<const Packet>, const Address &> m_txTrace;
+
+  double m_poissonArrivalRate; //!< Poisson arrival rate
+  bool m_usePoissonArrivalProcess; //!< Poisson arrival process
+  Ptr<ExponentialRandomVariable> m_arrivalRv; //!< For Poisson arrival process
 };
 
 } // namespace ns3
