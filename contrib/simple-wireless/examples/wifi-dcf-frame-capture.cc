@@ -148,16 +148,13 @@ int main (int argc, char *argv[])
   ap.Create (1);
   stas.Create (numStas);
 
-  // Create a single-model spectrum channel
-  Ptr<SingleModelSpectrumChannel> spectrumChannel = CreateObject<SingleModelSpectrumChannel> ();
-  Ptr<FriisPropagationLossModel> lossModel = CreateObject<FriisPropagationLossModel> ();
-  spectrumChannel->AddPropagationLossModel (lossModel);
-  Ptr<ConstantSpeedPropagationDelayModel> delayModel = CreateObject<ConstantSpeedPropagationDelayModel> ();
-  spectrumChannel->SetPropagationDelayModel (delayModel);
-
+  YansWifiChannelHelper wifiChannel;
+  wifiChannel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel");
+  wifiChannel.AddPropagationLoss ("ns3::FriisPropagationLossModel", "Frequency", DoubleValue (5e9));
+  
   // Create a helper to install a WifiPhy matched to the spectrum channel
-  SpectrumWifiPhyHelper wifiPhy = SpectrumWifiPhyHelper::Default ();
-  wifiPhy.SetChannel (spectrumChannel);
+  YansWifiPhyHelper wifiPhy = YansWifiPhyHelper::Default ();
+  wifiPhy.SetChannel (wifiChannel.Create ());
 
   wifiPhy.SetErrorRateModel ("ns3::YansErrorRateModel"); // classical model
   wifiPhy.Set ("Frequency", UintegerValue (5180)); // channel 36 at 20 MHz
@@ -168,11 +165,11 @@ int main (int argc, char *argv[])
   WifiHelper wifi;
   WifiMacHelper wifiMac;
   Ssid ssid = Ssid ("wifi-dcf");
-  wifi.SetStandard (WIFI_PHY_STANDARD_80211a);
+  wifi.SetStandard (WIFI_PHY_STANDARD_80211b);
   //wifi.SetRemoteStationManager ("ns3::MinstrelWifiManager");
   wifi.SetRemoteStationManager ("ns3::ConstantRateWifiManager", 
-                                "DataMode", StringValue ("OfdmRate54Mbps"),
-                                "ControlMode", StringValue ("OfdmRate24Mbps"),
+                                "DataMode", StringValue ("DsssRate11Mbps"),
+                                "ControlMode", StringValue ("DsssRate1Mbps"),
                                 "RtsCtsThreshold", UintegerValue (rtsThreshold));
   // Create the NetDevices
   NetDeviceContainer apDev;
