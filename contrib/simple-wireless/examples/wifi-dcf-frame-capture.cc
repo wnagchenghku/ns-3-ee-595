@@ -235,6 +235,7 @@ int main (int argc, char *argv[])
       client->SetRemote (socketAddr);
       client->SetAttribute ("UsePoissonArrivalProcess", BooleanValue (true));
       client->SetAttribute ("PoissonArrivalRate", DoubleValue (packetArrivalRate));
+      client->SetAttribute ("MaxPackets", UintegerValue (0));
       stas.Get (i)->AddApplication (client);
       client->SetStartTime (Seconds (1.0));
       client->SetStopTime (Seconds (duration + 1.0));
