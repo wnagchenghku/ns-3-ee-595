@@ -150,7 +150,7 @@ int main (int argc, char *argv[])
 
   YansWifiChannelHelper wifiChannel;
   wifiChannel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel");
-  wifiChannel.AddPropagationLoss ("ns3::FriisPropagationLossModel", "Frequency", DoubleValue (5e9));
+  wifiChannel.AddPropagationLoss ("ns3::FriisPropagationLossModel", "Frequency", DoubleValue (2.4e9));
   
   // Create a helper to install a WifiPhy matched to the spectrum channel
   YansWifiPhyHelper wifiPhy = YansWifiPhyHelper::Default ();
